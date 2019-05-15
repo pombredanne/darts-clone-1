@@ -28,8 +28,12 @@ libtool
 ltmain.sh
 missing
 src/darts
+src/darts-benchmark
 src/mkdarts
 stamp-h1
 test/*.trs
-test/darts-test
+test/test-darts
+test/test-darts.dic
+test/test-dic
+test/test-result
 test-driver
