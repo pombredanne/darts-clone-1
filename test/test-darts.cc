@@ -234,8 +234,8 @@ int main() {
   try {
     std::srand(static_cast<unsigned int>(std::time(NULL)));
 
-    static const std::size_t NUM_VALID_KEYS = 1 << 16;
-    static const std::size_t NUM_INVALID_KEYS = 1 << 17;
+    static const std::size_t NUM_VALID_KEYS = 1 << 3;
+    static const std::size_t NUM_INVALID_KEYS = 1 << 3;
 
     std::set<std::string> valid_keys;
     generate_valid_keys(NUM_VALID_KEYS, &valid_keys);

@@ -1366,7 +1366,7 @@ inline id_type DawgBuilder::append_node() {
 class DoubleArrayBuilderUnit {
  public:
   DoubleArrayBuilderUnit() : unit_(0) {}
-
+  //bit8 表示是否有叶子节点
   void set_has_leaf(bool has_leaf) {
     if (has_leaf) {
       unit_ |= 1U << 8;
@@ -1374,9 +1374,11 @@ class DoubleArrayBuilderUnit {
       unit_ &= ~(1U << 8);
     }
   }
+  //设置节点值，最高位表示是叶子节点，低31位表示叶子节点值
   void set_value(value_type value) {
     unit_ = value | (1U << 31);
   }
+  //转移条件字符，即边上的字符
   void set_label(uchar_type label) {
     unit_ = (unit_ & ~0xFFU) | label;
   }
@@ -1386,9 +1388,9 @@ class DoubleArrayBuilderUnit {
     }
     unit_ &= (1U << 31) | (1U << 8) | 0xFF;
     if (offset < 1U << 21) {
-      unit_ |= (offset << 10);
+      unit_ |= (offset << 10); //剩下21位，表示一个21位的数
     } else {
-      unit_ |= (offset << 2) | (1U << 9);
+      unit_ |= (offset << 2) | (1U << 9); //表示低9位为0,高21位可以非0的30位整数
     }
   }
 
@@ -1436,7 +1438,7 @@ class DoubleArrayBuilderExtraUnit {
  private:
   id_type prev_;
   id_type next_;
-  bool is_fixed_;
+  bool is_fixed_;   //表示被占用
   bool is_used_;
 
   // Copyable.
@@ -1474,10 +1476,10 @@ class DoubleArrayBuilder {
 
   progress_func_type progress_func_;
   AutoPool<unit_type> units_;
-  AutoArray<extra_type> extras_;
-  AutoPool<uchar_type> labels_;
+  AutoArray<extra_type> extras_; //256大小的环形数组缓冲
+  AutoPool<uchar_type> labels_; //转移条件label
   AutoArray<id_type> table_;
-  id_type extras_head_;
+  id_type extras_head_; //头指针
 
   // Disallows copy and assignment.
   DoubleArrayBuilder(const DoubleArrayBuilder &);
@@ -1817,11 +1819,12 @@ inline void DoubleArrayBuilder::reserve_id(id_type id) {
       extras_head_ = units_.size();
     }
   }
+  //将id对应extra从环形链表中摘出来
   extras(extras(id).prev()).set_next(extras(id).next());
   extras(extras(id).next()).set_prev(extras(id).prev());
   extras(id).set_is_fixed(true);
 }
-
+//分配units_
 inline void DoubleArrayBuilder::expand_units() {
   id_type src_num_units = units_.size();
   id_type src_num_blocks = num_blocks();
