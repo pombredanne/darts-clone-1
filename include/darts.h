@@ -69,6 +69,9 @@ class DoubleArrayUnit {
     return unit_ & ((1U << 31) | 0xFF);
   }
   // offset() returns the offset from the unit to its derived units.
+  //取offset值： (unit_ >> 10) << ((unit_ & (1U << 9)) >> 6); 若bit9为1，则((unit_ & (1U << 9)) >> 6)结果为8
+  //bit9 = 0: 表示一个21位的数
+  //bit1 = 1: 表示一个高21可以非0,低8位为0的29位数
   id_type offset() const {
     return (unit_ >> 10) << ((unit_ & (1U << 9)) >> 6);
   }
@@ -1366,7 +1369,7 @@ inline id_type DawgBuilder::append_node() {
 class DoubleArrayBuilderUnit {
  public:
   DoubleArrayBuilderUnit() : unit_(0) {}
-
+  //bit8 表示是否有叶子节点
   void set_has_leaf(bool has_leaf) {
     if (has_leaf) {
       unit_ |= 1U << 8;
@@ -1374,9 +1377,11 @@ class DoubleArrayBuilderUnit {
       unit_ &= ~(1U << 8);
     }
   }
+  //设置节点值，最高位1表示是叶子节点，低31位表示叶子节点值
   void set_value(value_type value) {
     unit_ = value | (1U << 31);
   }
+  //转移条件字符，即边上的字符
   void set_label(uchar_type label) {
     unit_ = (unit_ & ~0xFFU) | label;
   }
@@ -1385,10 +1390,13 @@ class DoubleArrayBuilderUnit {
       DARTS_THROW("failed to modify unit: too large offset");
     }
     unit_ &= (1U << 31) | (1U << 8) | 0xFF;
+    //bit9为指示位：
+    //  0： bit10-bit30表示一个21位的数；
+    //  1： (offset << 2): 补2位，为了后面10位放弃时仅放弃低8位; bit10-bit30表示高21位(可以非0)
     if (offset < 1U << 21) {
-      unit_ |= (offset << 10);
+      unit_ |= (offset << 10); //剩下21位，表示一个21位的数
     } else {
-      unit_ |= (offset << 2) | (1U << 9);
+      unit_ |= (offset << 2) | (1U << 9); //表示低8位为0,高21位可以非0的29位整数
     }
   }
 
@@ -1436,7 +1444,7 @@ class DoubleArrayBuilderExtraUnit {
  private:
   id_type prev_;
   id_type next_;
-  bool is_fixed_;
+  bool is_fixed_;   //表示被占用
   bool is_used_;
 
   // Copyable.
@@ -1474,10 +1482,10 @@ class DoubleArrayBuilder {
 
   progress_func_type progress_func_;
   AutoPool<unit_type> units_;
-  AutoArray<extra_type> extras_;
-  AutoPool<uchar_type> labels_;
+  AutoArray<extra_type> extras_; //256大小的环形数组缓冲
+  AutoPool<uchar_type> labels_; //转移条件label
   AutoArray<id_type> table_;
-  id_type extras_head_;
+  id_type extras_head_; //头指针
 
   // Disallows copy and assignment.
   DoubleArrayBuilder(const DoubleArrayBuilder &);
@@ -1817,11 +1825,12 @@ inline void DoubleArrayBuilder::reserve_id(id_type id) {
       extras_head_ = units_.size();
     }
   }
+  //将id对应extra从环形链表中摘出来
   extras(extras(id).prev()).set_next(extras(id).next());
   extras(extras(id).next()).set_prev(extras(id).prev());
   extras(id).set_is_fixed(true);
 }
-
+//分配units_
 inline void DoubleArrayBuilder::expand_units() {
   id_type src_num_units = units_.size();
   id_type src_num_blocks = num_blocks();
@@ -1846,7 +1855,7 @@ inline void DoubleArrayBuilder::expand_units() {
     extras(i - 1).set_next(i);
     extras(i).set_prev(i - 1);
   }
-
+  //构建环形数组
   extras(src_num_units).set_prev(dest_num_units - 1);
   extras(dest_num_units - 1).set_next(src_num_units);
 
